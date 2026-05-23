@@ -162,50 +162,57 @@ def create_capa_pdf(date, category, issue, classification, irb, action, deadline
     pdf.line(10, 22, 200, 22)
     pdf.ln(10)
     
-    # Body Content
+    # Body Content (Stacked Layout to prevent horizontal space errors)
     pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(50, 10, "Date of Discovery:")
+    pdf.cell(0, 8, "Date of Discovery:", ln=1)
     pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, date.strftime('%d %b %Y'), ln=1)
+    pdf.cell(0, 8, date.strftime('%d %b %Y'), ln=1)
+    pdf.ln(4)
     
     pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(50, 10, "Primary Category:")
+    pdf.cell(0, 8, "Primary Category:", ln=1)
     pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, category)
+    pdf.multi_cell(0, 8, category)
+    pdf.ln(4)
     
     pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(50, 10, "Specific Incident:")
+    pdf.cell(0, 8, "Specific Incident:", ln=1)
     pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, issue)
-    
-    pdf.ln(5)
+    pdf.multi_cell(0, 8, issue)
+    pdf.ln(8)
     
     # Assessment Section
     pdf.set_font("Arial", style="B", size=14)
     pdf.cell(0, 10, "Regulatory Assessment", ln=1)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(4)
     
     pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(50, 10, "Severity Level:")
+    pdf.cell(0, 8, "Severity Level:", ln=1)
     pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, classification, ln=1)
+    pdf.cell(0, 8, classification, ln=1)
+    pdf.ln(4)
     
     pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(50, 10, "IRB Reporting:")
+    pdf.cell(0, 8, "IRB Reporting:", ln=1)
     pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, irb, ln=1)
+    pdf.cell(0, 8, irb, ln=1)
+    pdf.ln(4)
     
     pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(50, 10, "Action Deadline:")
+    pdf.cell(0, 8, "Action Deadline:", ln=1)
     pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, deadline.strftime('%d %b %Y'), ln=1)
-    
-    pdf.ln(5)
+    pdf.cell(0, 8, deadline.strftime('%d %b %Y'), ln=1)
+    pdf.ln(8)
     
     # Action Plan
     pdf.set_font("Arial", style="B", size=14)
     pdf.cell(0, 10, "Required Immediate Action", ln=1)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(4)
+    
     pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, action)
+    pdf.multi_cell(0, 8, action)
     
     return bytes(pdf.output())
 
