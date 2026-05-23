@@ -1,15 +1,15 @@
 [theme]
-# A bold, authoritative royal navy for buttons and highlights
-primaryColor = "#1a365d"
+# A vibrant, professional blue for buttons to pop against the dark UI
+primaryColor = "#3b82f6"
 
-# A very soft, cool clinical gray/blue for the main background
-backgroundColor = "#f0f4f8"
+# A deep, sophisticated dark slate background (highly attractive and easy on the eyes)
+backgroundColor = "#0f172a"
 
-# Pure white for the sidebar and input boxes so they pop cleanly off the background
-secondaryBackgroundColor = "#ffffff"
+# A slightly lighter dark slate for input boxes and the sidebar to create depth
+secondaryBackgroundColor = "#1e293b"
 
-# A deep slate (softer than pure black) for highly readable, elegant text
-textColor = "#2c3e50"
+# Crisp off-white text for perfect readability
+textColor = "#f8fafc"
 
-# Clean, modern sans-serif font
+# Clean, modern font
 font = "sans serif"
