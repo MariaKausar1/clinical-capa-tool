@@ -1,15 +1,15 @@
 [theme]
-# A strong, professional "medical" blue for primary actions and buttons
-primaryColor = "#005b96"
+# A bold, authoritative royal navy for buttons and highlights
+primaryColor = "#1a365d"
 
-# Pure white background for the main content area
-backgroundColor = "#ffffff"
+# A very soft, cool clinical gray/blue for the main background
+backgroundColor = "#f0f4f8"
 
-# A very soft, cool gray for the sidebars and input boxes to create contrast
-secondaryBackgroundColor = "#f4f6f9"
+# Pure white for the sidebar and input boxes so they pop cleanly off the background
+secondaryBackgroundColor = "#ffffff"
 
-# A deep, highly legible charcoal gray for the text
-textColor = "#1e293b"
+# A deep slate (softer than pure black) for highly readable, elegant text
+textColor = "#2c3e50"
 
-# A clean, modern font
+# Clean, modern sans-serif font
 font = "sans serif"
