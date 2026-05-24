@@ -3,22 +3,29 @@ import streamlit as st
 st.set_page_config(page_title="Research Proposal Builder", layout="wide")
 st.title("🔬 AI Clinical Research Proposal Builder")
 
-# Step 1: Selection
 field = st.selectbox("Select Research Field", ["Oncology", "Cardiology", "Pediatrics", "Pharmacology"])
 study_type = st.radio("Study Type", ["Prospective", "Retrospective", "Observational"])
 
-# Step 2: Input Details
 if st.button("Generate Proposal Structure"):
-    st.subheader("Drafting your Proposal...")
-    
-    # This is the "Brain" of your app
-    with st.spinner("Analyzing research parameters..."):
-        # Here you can later connect to an AI API, 
-        # but for now, we structure the output
+    with st.spinner("Drafting your research framework..."):
+        # The generated content
+        proposal_text = f"""
+        RESEARCH PROPOSAL
+        Field: {field}
+        Study Type: {study_type}
+        
+        Objective: To evaluate clinical outcomes and efficacy metrics.
+        Hypothesis: Implementation of the study intervention will yield statistically significant improvements.
+        Methodology: A {study_type.lower()} design will be employed to collect primary clinical data.
+        """
+        
         st.success("Proposal Structure Generated:")
+        st.text_area("Draft Content:", value=proposal_text, height=300)
         
-        st.write(f"**Title:** A {study_type} analysis of [Disease] in {field}")
-        st.write("**Objective:** To evaluate the clinical efficacy and safety outcomes.")
-        st.write("**Hypothesis:** Implementation of [Intervention] will improve patient outcomes.")
-        
-        st.info("💡 Tip: You can now export this as a Word document or PDF.")
+        # Export Button
+        st.download_button(
+            label="📥 Download Research Proposal (.txt)",
+            data=proposal_text,
+            file_name="Research_Proposal.txt",
+            mime="text/plain"
+        )
