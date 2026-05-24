@@ -1,31 +1,39 @@
-# database.py
-master_taxonomy = {
-    "Eligibility Violation": {
-        "score": 40,
-        "root_causes": "Failure to verify eligibility before dosing; Lack of pre-dose verification workflow.",
-        "corrective": ["Notify sponsor and IRB/IEC", "Medical assessment of subject safety", "Document protocol deviation"],
-        "preventive": ["Implement mandatory eligibility verification checklist", "Add electronic protocol workflow lock"],
-        "gcp_ref": "ICH-GCP E6(R2) 4.5.1: Compliance with approved protocol and subject safety."
-    },
-    "Investigational Product Dosing Error": {
-        "score": 30,
-        "root_causes": "Inadequate staff training; Failure to follow administration guidelines.",
-        "corrective": ["Report to medical monitor", "Assess subject for adverse effects"],
-        "preventive": ["Conduct periodic compliance monitoring", "Retrain study coordinator and PI"],
-        "gcp_ref": "ICH-GCP E6(R2) 4.6.1: Investigational product shall be used in accordance with the protocol."
-    },
-    "Late Sponsor Notification": {
-        "score": 15,
-        "root_causes": "Inadequate deviation escalation process.",
-        "corrective": ["Immediate notification to sponsor", "Root cause analysis"],
-        "preventive": ["Add deviation reporting timeline alerts"],
-        "gcp_ref": "ICH-GCP E6(R2) 5.20.1: Non-compliance reporting requirements."
-    },
-    "Documentation Control Issue": {
-        "score": 10,
-        "root_causes": "Poor document version control.",
-        "corrective": ["Quarantine outdated eligibility checklist"],
-        "preventive": ["Introduce document version control audit"],
-        "gcp_ref": "ALCOA+ Principles for Data Integrity."
-    }
-}
+# app.py
+import streamlit as st
+from database import master_taxonomy
+
+def get_risk_level(score):
+    if score >= 81: return "Critical"
+    if score >= 51: return "High"
+    if score >= 21: return "Medium"
+    return "Low"
+
+st.set_page_config(page_title="Enterprise Compliance Engine", layout="wide")
+st.title("🏥 Enterprise Compliance Engine")
+
+user_input = st.text_area("Enter incident details:", height=200)
+
+if st.button("Run Enterprise Assessment"):
+    detected = []
+    total_score = 0
+    
+    # Hierarchical detection
+    for issue, details in master_taxonomy.items():
+        if issue.lower() in user_input.lower() or any(w in user_input.lower() for w in issue.split()):
+            detected.append((issue, details))
+            total_score += details['score']
+
+    if detected:
+        risk_level = get_risk_level(total_score)
+        st.subheader(f"Classification: Protocol Deviation")
+        st.metric("Risk Level", risk_level, delta=f"Score: {total_score}")
+        
+        for issue_name, data in detected:
+            with st.expander(f"Detected: {issue_name}"):
+                st.write(f"**Root Cause:** {data['root_causes']}")
+                col1, col2 = st.columns(2)
+                col1.write(f"**Corrective:** {', '.join(data['corrective'])}")
+                col2.write(f"**Preventive:** {', '.join(data['preventive'])}")
+                st.info(f"**Regulatory Justification:** {data['gcp_ref']}")
+    else:
+        st.warning("No compliance markers identified. Please refine incident description.")
