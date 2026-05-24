@@ -1,71 +1,126 @@
 import streamlit as st
+import pandas as pd
 
-st.set_page_config(page_title="Toxidrome Diagnostic Engine", layout="wide")
+# Page Config must be the first Streamlit command
+st.set_page_config(page_title="ED Triage: Toxidrome Engine", layout="wide", initial_sidebar_state="collapsed")
 
-st.title("☠️ Toxidrome Diagnostic & Antidote Engine")
-st.markdown("A rapid clinical decision-support tool for emergency toxicology and overdose management.")
+# --- UI Styling & Header ---
+st.title("⚡ ED Toxidrome Decision Support")
+st.markdown("Rapid clinical pattern recognition and antidote protocols.")
 st.markdown("---")
 
-st.subheader("1. Patient Presentation (Vitals & Exam)")
-st.info("Select the predominant clinical signs presenting in the emergency department.")
+# --- Initialize State for "Smart Defaults" & "Clear All" ---
+if 'reset' not in st.session_state:
+    st.session_state.reset = False
 
-col1, col2, col3 = st.columns(3)
+def clear_all():
+    st.session_state.reset = not st.session_state.reset
+
+st.button("🔄 Clear All to Normal", on_click=clear_all)
+
+# --- 1. BODY-SYSTEM CARDS (Clinical UI) ---
+col1, col2 = st.columns(2)
+
 with col1:
-    pupils = st.radio("Pupils (Mydriasis/Miosis)", ["Normal", "Pinpoint (Constricted)", "Dilated"])
-    heart_rate = st.radio("Heart Rate", ["Normal", "Bradycardia (<60)", "Tachycardia (>100)"])
+    with st.container(border=True):
+        st.subheader("🧠 Neurologic")
+        pupils = st.radio("Pupils", ["Normal", "Pinpoint", "Dilated"], horizontal=True, key=f"pupils_{st.session_state.reset}")
+        mental_status = st.radio("Mental Status", ["Normal", "Depressed / Coma", "Agitated / Delirium"], horizontal=True, key=f"ms_{st.session_state.reset}")
+
+    with st.container(border=True):
+        st.subheader("🫁 Respiratory")
+        respirations = st.radio("Respiratory Rate", ["Normal", "Depressed (<12)", "Tachypnea (>20)"], horizontal=True, key=f"resp_{st.session_state.reset}")
+
 with col2:
-    skin = st.radio("Skin/Mucous Membranes", ["Normal", "Dry / Hot", "Sweaty (Diaphoretic)"])
-    respirations = st.radio("Respiratory Rate", ["Normal", "Depressed (<12)", "Elevated"])
-with col3:
-    mental_status = st.radio("Mental Status", ["Normal", "CNS Depression / Coma", "Agitated / Delirious"])
-    bowel_sounds = st.radio("Bowel Sounds", ["Normal", "Absent / Decreased", "Hyperactive"])
+    with st.container(border=True):
+        st.subheader("🫀 Cardiovascular")
+        heart_rate = st.radio("Heart Rate", ["Normal", "Bradycardia (<60)", "Tachycardia (>100)"], horizontal=True, key=f"hr_{st.session_state.reset}")
 
-if st.button("Run Diagnostic Algorithm", type="primary"):
-    st.markdown("---")
-    st.subheader("2. Diagnostic Output & Clinical Protocol")
+    with st.container(border=True):
+        st.subheader("🧬 GI / Autonomic")
+        skin = st.radio("Skin Exam", ["Normal", "Dry, Flushed", "Diaphoretic (Sweaty)"], horizontal=True, key=f"skin_{st.session_state.reset}")
+        bowel_sounds = st.radio("Bowel Sounds", ["Normal", "Decreased / Absent", "Hyperactive"], horizontal=True, key=f"bs_{st.session_state.reset}")
+
+# --- 2. LIVE DANGER ALERTS (Instant Pattern Recognition) ---
+st.markdown("### 🚨 Live Clinical Alerts")
+alert_triggered = False
+
+if pupils == "Pinpoint" and respirations == "Depressed (<12)":
+    st.error("**⚠ CRITICAL:** High concern for Opioid Toxicity. Prepare Airway & Naloxone.")
+    alert_triggered = True
+if pupils == "Dilated" and skin == "Dry, Flushed" and mental_status == "Agitated / Delirium":
+    st.warning("**⚠ WARNING:** Anticholinergic syndrome likely. Monitor for hyperthermia and seizures.")
+    alert_triggered = True
+if skin == "Diaphoretic (Sweaty)" and bowel_sounds == "Hyperactive" and pupils == "Pinpoint":
+    st.warning("**⚠ WARNING:** Cholinergic crisis possible (SLUDGE syndrome). Isolate patient if organophosphate exposure suspected.")
+    alert_triggered = True
+
+if not alert_triggered:
+    st.success("No critical toxidrome combinations instantly detected. Review probability engine below.")
+
+st.markdown("---")
+
+# --- 3. PROBABILITY ENGINE (Weighted Scoring) ---
+# We calculate a score for each toxidrome based on clinical weight of symptoms
+scores = {"Opioid": 0, "Anticholinergic": 0, "Sympathomimetic": 0, "Cholinergic": 0}
+
+# Opioid (Max Score ~ 10)
+if pupils == "Pinpoint": scores["Opioid"] += 3
+if respirations == "Depressed (<12)": scores["Opioid"] += 4
+if mental_status == "Depressed / Coma": scores["Opioid"] += 2
+if heart_rate == "Bradycardia (<60)": scores["Opioid"] += 1
+
+# Anticholinergic (Max Score ~ 10)
+if pupils == "Dilated": scores["Anticholinergic"] += 2
+if skin == "Dry, Flushed": scores["Anticholinergic"] += 3
+if heart_rate == "Tachycardia (>100)": scores["Anticholinergic"] += 2
+if mental_status == "Agitated / Delirium": scores["Anticholinergic"] += 2
+if bowel_sounds == "Decreased / Absent": scores["Anticholinergic"] += 1
+
+# Sympathomimetic (Max Score ~ 10)
+if pupils == "Dilated": scores["Sympathomimetic"] += 2
+if skin == "Diaphoretic (Sweaty)": scores["Sympathomimetic"] += 3
+if heart_rate == "Tachycardia (>100)": scores["Sympathomimetic"] += 3
+if mental_status == "Agitated / Delirium": scores["Sympathomimetic"] += 2
+
+# Cholinergic (Max Score ~ 10)
+if pupils == "Pinpoint": scores["Cholinergic"] += 2
+if skin == "Diaphoretic (Sweaty)": scores["Cholinergic"] += 3
+if bowel_sounds == "Hyperactive": scores["Cholinergic"] += 3
+if respirations == "Tachypnea (>20)": scores["Cholinergic"] += 1
+if heart_rate == "Bradycardia (<60)": scores["Cholinergic"] += 1
+
+# Convert scores to rough percentages (Max score roughly equals 100%)
+probabilities = {k: min(v * 10, 99) for k, v in scores.items()}
+sorted_probs = sorted(probabilities.items(), key=lambda x: x[1], reverse=True)
+
+# --- 4. CLINICAL INTELLIGENCE OUTPUT ---
+st.subheader("📊 Live Toxidrome Matching")
+
+out_col1, out_col2 = st.columns([1, 2])
+
+with out_col1:
+    st.write("**Top Differential Diagnoses:**")
+    for tox, prob in sorted_probs[:2]: # Show top 2
+        if prob > 0:
+            st.metric(label=tox, value=f"{prob}% Match")
+        else:
+            st.write("Awaiting clinical inputs...")
+            break
+
+with out_col2:
+    top_toxidrome = sorted_probs[0][0]
+    top_prob = sorted_probs[0][1]
     
-    # -----------------------------------------
-    # CLINICAL LOGIC ENGINE
-    # -----------------------------------------
-    toxidrome = "Unknown or Mixed Presentation"
-    antidote = "Supportive care. Consider calling Poison Control."
-    mechanism = ""
-    
-    # Opioid Logic
-    if pupils == "Pinpoint (Constricted)" and respirations == "Depressed (<12)" and (mental_status == "CNS Depression / Coma" or heart_rate == "Bradycardia (<60)"):
-        toxidrome = "Opioid Toxicity"
-        antidote = "**Naloxone (Narcan)**. Initial dose: 0.4 to 2 mg IV/IM/IN. Repeat every 2-3 minutes as needed. Goal is adequate ventilation, not necessarily a fully awake patient."
-        mechanism = "Mu-opioid receptor agonism leading to profound CNS and respiratory depression."
+    if top_prob >= 50:
+        st.info(f"**AI Interpretation:** Presentation is most consistent with **{top_toxidrome}** toxidrome.")
         
-    # Anticholinergic Logic
-    elif pupils == "Dilated" and skin == "Dry / Hot" and heart_rate == "Tachycardia (>100)" and mental_status == "Agitated / Delirious":
-        toxidrome = "Anticholinergic Toxicity"
-        antidote = "**Physostigmine**. 0.5 to 2 mg IV slowly over 5 minutes. (Avoid if TCA overdose is suspected due to risk of asystole). Benzodiazepines for agitation."
-        mechanism = "Competitive antagonism of acetylcholine at central and peripheral muscarinic receptors (Classic mnemonic: 'Blind as a bat, mad as a hatter, red as a beet, hot as a hare, dry as a bone')."
-        
-    # Cholinergic Logic
-    elif pupils == "Pinpoint (Constricted)" and skin == "Sweaty (Diaphoretic)" and bowel_sounds == "Hyperactive":
-        toxidrome = "Cholinergic Toxicity (e.g., Organophosphates)"
-        antidote = "**Atropine** (for muscarinic symptoms) starting at 2-5 mg IV, doubling dose every 5 mins until airway secretions clear. Followed by **Pralidoxime (2-PAM)** for nicotinic symptoms."
-        mechanism = "Inhibition of acetylcholinesterase, leading to massive acetylcholine accumulation at synapses (SLUDGE syndrome)."
-        
-    # Sympathomimetic Logic
-    elif pupils == "Dilated" and skin == "Sweaty (Diaphoretic)" and heart_rate == "Tachycardia (>100)" and mental_status == "Agitated / Delirious":
-        toxidrome = "Sympathomimetic Toxicity (e.g., Cocaine, Amphetamines)"
-        antidote = "**Benzodiazepines** (e.g., Diazepam or Lorazepam) for agitation, seizures, and tachycardia. **Strictly avoid beta-blockers** due to the risk of unopposed alpha-receptor stimulation."
-        mechanism = "Excessive catecholamine release or reuptake inhibition causing severe sympathetic overdrive."
-
-    # -----------------------------------------
-    # UI RENDERING
-    # -----------------------------------------
-    if toxidrome != "Unknown or Mixed Presentation":
-        st.error(f"### 🚨 Most Likely Toxidrome: {toxidrome}")
-        st.success(f"**💉 Antidote Protocol:**\n {antidote}")
-        st.info(f"**🔬 Pharmacological Mechanism:**\n {mechanism}")
-    else:
-        st.warning(f"### ⚠️ {toxidrome}")
-        st.write("The selected symptoms do not perfectly match a classic, isolated toxidrome. This may indicate a polypharmacy overdose or an alternate medical etiology.")
-        st.write(antidote)
-
-    st.markdown("---")
-    st.caption("Disclaimer: This tool is a Proof of Concept for portfolio demonstration only. It is not a substitute for clinical judgment or official poison control guidelines.")
+        # Pull the specific protocol based on the top match
+        if top_toxidrome == "Opioid":
+            st.write("💉 **Antidote Protocol:** Administer **Naloxone (Narcan)** 0.4 - 2 mg IV/IM/IN. Goal is adequate ventilation.")
+        elif top_toxidrome == "Anticholinergic":
+            st.write("💉 **Antidote Protocol:** Consider **Physostigmine** for severe central symptoms. Benzodiazepines for agitation. Avoid beta-blockers.")
+        elif top_toxidrome == "Sympathomimetic":
+            st.write("💉 **Antidote Protocol:** **Benzodiazepines** (Diazepam/Lorazepam) are first-line for agitation and cardiovascular toxicity. STRICTLY AVOID BETA-BLOCKERS.")
+        elif top_toxidrome == "Cholinergic":
+            st.write("💉 **Antidote Protocol:** **Atropine** escalating doses until airway secretions clear. Follow with **Pralidoxime (2-PAM)**.")
