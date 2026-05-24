@@ -1,27 +1,49 @@
-# database.py
-master_taxonomy = {
-    "Temperature Excursion": {
-        "Storage out of range": {
-            "root_cause": "Equipment failure or human oversight.",
-            "risk": "High - Integrity of the investigational product is compromised.",
-            "action": "Quarantine IP, notify sponsor, conduct stability assessment.",
-            "gcp_ref": "ICH GCP E6(R2) 4.6.3"
-        }
-    },
-    "Data Integrity": {
-        "Unauthorized correction": {
-            "root_cause": "Lack of training on ALCOA+ principles.",
-            "risk": "Critical - Audit trail obfuscation.",
-            "action": "Retrain staff, update SOPs, submit CAPA.",
-            "gcp_ref": "FDA 21 CFR Part 11"
-        }
-    },
-    "Safety Reporting": {
-        "Delayed SAE Reporting": {
-            "root_cause": "Communication breakdown between site and sponsor.",
-            "risk": "High - Regulatory reporting non-compliance.",
-            "action": "Submit SAE report, conduct root cause analysis, update training.",
-            "gcp_ref": "ICH GCP E6(R2) 4.11.1"
-        }
-    }
-}
+# app.py
+import streamlit as st
+from database import master_taxonomy
+
+# Agent 1: Classifier (Identifies the Category)
+def agent_classify(text):
+    text = text.lower()
+    for cat in master_taxonomy:
+        if cat.lower() in text or any(word in text for word in cat.lower().split()):
+            return cat
+    return "Protocol Deviation"
+
+# Agent 2: Analyst (Extracts Risk & Root Cause)
+def agent_analyze(cat, text):
+    category_data = master_taxonomy.get(cat, {})
+    # Fallback to the first issue if specific mapping isn't found
+    issue_key = list(category_data.keys())[0] if category_data else "General Deviation"
+    return category_data.get(issue_key, {
+        "root_cause": "Undetermined", 
+        "risk": "Medium", 
+        "action": "Document and notify monitor.", 
+        "gcp_ref": "N/A"
+    })
+
+# --- UI Setup ---
+st.set_page_config(page_title="QMS Agent", layout="wide")
+st.title("🏥 Enterprise QMS Agent Framework")
+st.markdown("Automated clinical compliance assessment powered by modular agents.")
+
+user_input = st.text_area("Enter incident details:", placeholder="e.g., Patient randomized despite failed screening labs...")
+
+if st.button("Run Multi-Agent Workflow", type="primary"):
+    with st.status("Agents processing compliance data...", expanded=True) as status:
+        st.write("Agent 1: Classifying Category...")
+        cat = agent_classify(user_input)
+        
+        st.write("Agent 2: Analyzing Risk & Root Cause...")
+        analysis = agent_analyze(cat, user_input)
+        
+        status.update(label="Analysis Complete", state="complete")
+
+    # Display Results
+    st.subheader(f"Classification: {cat}")
+    col1, col2 = st.columns(2)
+    col1.metric("Risk Level", analysis['risk'])
+    col2.write(f"**Root Cause Analysis:** {analysis['root_cause']}")
+    
+    st.info(f"**Recommended CAPA Action:** {analysis['action']}")
+    st.caption(f"Regulatory Justification: {analysis['gcp_ref']}")
