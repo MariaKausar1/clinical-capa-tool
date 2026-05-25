@@ -100,7 +100,7 @@ is_critical = respirations == "Depressed (<12)" or mental_status == "Depressed /
 is_high_risk = mental_status == "Agitated / Delirium" or temperature == "Hyperthermia (>39C)"
 
 # --- 3. MAIN DASHBOARD ---
-st.markdown("<div style='font-size: 2rem; font-weight: 700; color: #212529;'>Clinical Decision Support: Toxicology</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-size: 2.2rem; font-weight: 800; color: #0A3161; border-bottom: 3px solid #0A3161; padding-bottom: 10px; margin-bottom: 20px;'>Clinical Decision Support: Toxicology</div>", unsafe_allow_html=True)
 
 # Status Bar
 if is_critical:
