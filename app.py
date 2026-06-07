@@ -1,190 +1,183 @@
 import streamlit as st
 
-st.set_page_config(page_title="Toxidrome CDS", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Toxicology Search Engine", layout="wide")
 
-# --- CUSTOM CSS FOR ENTERPRISE UI (High Visibility Cyan) ---
+# --- CUSTOM CSS (Clean, Enterprise UI) ---
 st.markdown("""
     <style>
-    .critical-alert { background-color: #721c24; color: white; padding: 12px; border-radius: 4px; font-weight: bold; border-left: 6px solid #dc3545; }
-    .urgent-alert { background-color: #856404; color: white; padding: 12px; border-radius: 4px; font-weight: bold; border-left: 6px solid #ffc107; }
-    .stable-alert { background-color: #155724; color: white; padding: 12px; border-radius: 4px; font-weight: bold; border-left: 6px solid #28a745; }
+    .critical-alert { background-color: #721c24; color: white; padding: 12px; border-radius: 4px; font-weight: bold; border-left: 6px solid #dc3545; margin-bottom: 15px;}
     .section-header { font-size: 1.1rem; font-weight: 600; color: #00BFFF; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #444; padding-bottom: 4px; }
     .diagnostic-card { border: 1px solid #dee2e6; border-radius: 6px; padding: 16px; background-color: #f8f9fa; }
+    .search-tag { background-color: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; color: #495057; margin-right: 5px; display: inline-block; margin-bottom: 5px;}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 1. THE CLINICAL DATABASE ---
+# --- 1. THE EXPANDED CLINICAL DATABASE ---
 TOXICOLOGY_DB = {
     "Opioid": {
-        "hallmarks": ["Pinpoint pupils", "Respiratory depression", "CNS depression", "Bradycardia"],
-        "alternatives": ["Sedative-hypnotic exposure", "Hypoglycemia", "Primary intracranial event"],
+        "substances": ["Heroin", "Fentanyl", "Oxycodone", "Morphine", "Methadone", "Buprenorphine"],
+        "hallmarks": ["Pinpoint pupils", "Respiratory depression (<12 bpm)", "CNS depression / Coma", "Bradycardia"],
         "antidote": "Naloxone",
         "dose": "0.04 - 0.4 mg IV (titrate to effect).",
         "goal": "Adequate spontaneous ventilation (not full arousal).",
-        "warnings": "Observe for re-sedation (naloxone half-life is ~30-81 mins)."
+        "warnings": "Observe for re-sedation (naloxone half-life is ~30-81 mins). Escalate airway management if refractory hypoxia persists."
+    },
+    "Acetaminophen (APAP)": {
+        "substances": ["Tylenol", "Paracetamol", "APAP", "NyQuil", "Percocet"],
+        "hallmarks": ["Nausea / Vomiting", "Right Upper Quadrant (RUQ) Pain", "Elevated AST/ALT", "Asymptomatic (Early Stage)"],
+        "antidote": "N-acetylcysteine (NAC)",
+        "dose": "IV Protocol: 150 mg/kg over 1 hr, then 50 mg/kg over 4 hrs, then 100 mg/kg over 16 hrs.",
+        "goal": "Prevent fulminant hepatic failure by replenishing glutathione.",
+        "warnings": "Plot 4-hour serum APAP level on the Rumack-Matthew Nomogram to determine if NAC is indicated."
     },
     "Anticholinergic": {
+        "substances": ["Benadryl", "Diphenhydramine", "Atropine", "Scopolamine", "TCA Antidepressants"],
         "hallmarks": ["Dilated pupils", "Dry / Flushed skin", "Tachycardia", "Agitation / Delirium", "Decreased / Absent bowel sounds"],
-        "alternatives": ["Sepsis / Infection", "Thyroid storm", "Alcohol withdrawal"],
         "antidote": "Supportive Care & Physostigmine",
         "dose": "Physostigmine 0.5 - 2 mg IV over 5 mins (for severe delirium).",
         "goal": "Control severe central nervous system agitation.",
         "warnings": "ABSOLUTE CONTRAINDICATION: Do NOT administer physostigmine if QRS > 100ms or TCA overdose is suspected."
     },
     "Sympathomimetic": {
-        "hallmarks": ["Dilated pupils", "Diaphoresis (Sweaty)", "Tachycardia", "Agitation / Delirium", "Hyperthermia (>39C)"],
-        "alternatives": ["Serotonin Syndrome", "Thyroid storm", "Alcohol/Benzo withdrawal"],
+        "substances": ["Cocaine", "Methamphetamine", "Adderall", "MDMA", "Vyvanse"],
+        "hallmarks": ["Dilated pupils", "Diaphoresis (Sweaty)", "Tachycardia", "Agitation / Delirium", "Hyperthermia (>39C)", "Hypertension"],
         "antidote": "Benzodiazepines",
         "dose": "Diazepam 5-10 mg IV or Lorazepam 1-2 mg IV.",
         "goal": "Reduce sympathetic outflow and prevent seizures/hyperthermia.",
-        "warnings": "ABSOLUTE CONTRAINDICATION: Beta-blockers (risk of unopposed alpha stimulation)."
+        "warnings": "ABSOLUTE CONTRAINDICATION: Beta-blockers (risk of unopposed alpha stimulation leading to severe ischemia)."
     },
     "Cholinergic": {
-        "hallmarks": ["Pinpoint pupils", "Diaphoresis (Sweaty)", "Hyperactive bowel sounds", "Tachypnea (>20)"],
-        "alternatives": ["Pontine hemorrhage", "Opiate co-ingestion"],
+        "substances": ["Organophosphates", "Pesticides", "Sarin Gas", "Nerve Agents", "Donepezil"],
+        "hallmarks": ["Pinpoint pupils", "Diaphoresis (Sweaty)", "Hyperactive bowel sounds", "Tachypnea (>20 bpm)", "Excessive Salivation / Secrections"],
         "antidote": "Atropine & Pralidoxime (2-PAM)",
         "dose": "Atropine 2 - 5 mg IV. Double every 5 minutes.",
         "goal": "Titrate Atropine specifically to the clearing of respiratory secretions.",
-        "warnings": "Do not stop atropine based on heart rate or pupil size."
+        "warnings": "Do not stop atropine based on heart rate or pupil size. Focus on clearing the airway."
     },
     "Serotonin Syndrome": {
-        "hallmarks": ["Agitation / Delirium", "Tachycardia", "Diaphoresis (Sweaty)", "Hyperactive bowel sounds", "Hyperthermia (>39C)"],
-        "alternatives": ["Sympathomimetic toxicity", "Neuroleptic Malignant Syndrome (NMS)"],
+        "substances": ["SSRI", "Lexapro", "Zoloft", "MAOI", "Linezolid", "Dextromethorphan"],
+        "hallmarks": ["Agitation / Delirium", "Tachycardia", "Diaphoresis (Sweaty)", "Hyperactive bowel sounds", "Hyperthermia (>39C)", "Muscle Clonus / Rigidity"],
         "antidote": "Cyproheptadine & Benzodiazepines",
         "dose": "Cyproheptadine 12 mg PO/NG initially, then 2 mg q2h if symptomatic.",
         "goal": "Control agitation, hyperthermia, and reduce muscle rigidity.",
-        "warnings": "Do NOT use physical restraints. Avoid antipyretics."
-    },
-    "Tricyclic Antidepressant (TCA)": {
-        "hallmarks": ["Agitation / Delirium", "Tachycardia", "Dilated pupils", "Dry / Flushed skin", "Widened QRS (>100ms)"],
-        "alternatives": ["Anticholinergic toxicity", "Cocaine/Amphetamine overdose"],
-        "antidote": "Sodium Bicarbonate",
-        "dose": "1-2 mEq/kg IV bolus, followed by continuous IV infusion.",
-        "goal": "Narrow QRS interval to <100ms and correct hypotension.",
-        "warnings": "Avoid physostigmine. Monitor closely for refractory ventricular dysrhythmias."
-    },
-    "Sedative-Hypnotic": {
-        "hallmarks": ["Depressed / Coma", "Normal pupils"],
-        "alternatives": ["Opioid toxicity", "Ethanol intoxication", "Hypoglycemia"],
-        "antidote": "Supportive Care",
-        "dose": "Airway management and ventilatory support.",
-        "goal": "Maintain adequate oxygenation and ventilation.",
-        "warnings": "Flumazenil is generally contraindicated in undifferentiated overdoses due to risk of intractable seizures."
+        "warnings": "Do NOT use physical restraints. Avoid antipyretics (fever is driven by muscle activity, not the hypothalamus)."
     }
 }
 
-# --- 2. LEFT PANEL: TRIAGE ASSESSMENT ---
-with st.sidebar:
-    st.markdown("<div style='font-size: 1.5rem; font-weight: bold; color: #00BFFF;'>Triage Assessment</div>", unsafe_allow_html=True)
-    st.caption("Input real-time patient findings.")
-    
-    st.markdown("<div class='section-header'>CNS Findings</div>", unsafe_allow_html=True)
-    pupils = st.selectbox("Pupil Examination", ["Normal", "Pinpoint", "Dilated"])
-    mental_status = st.selectbox("Mental Status", ["Normal", "Depressed / Coma", "Agitated / Delirium"])
-    
-    st.markdown("<div class='section-header'>Hemodynamics & Airway</div>", unsafe_allow_html=True)
-    respirations = st.selectbox("Respiratory Rate", ["Normal", "Depressed (<12)", "Tachypnea (>20)"])
-    heart_rate = st.selectbox("Heart Rate", ["Normal", "Bradycardia (<60)", "Tachycardia (>100)"])
-    
-    st.markdown("<div class='section-header'>Autonomic Signs</div>", unsafe_allow_html=True)
-    skin = st.selectbox("Skin / Mucous Membranes", ["Normal", "Dry / Flushed", "Diaphoretic (Sweaty)"])
-    bowel_sounds = st.selectbox("Bowel Sounds", ["Normal", "Decreased / Absent", "Hyperactive"])
-    
-    st.markdown("<div class='section-header'>Ancillary Data</div>", unsafe_allow_html=True)
-    ecg_qrs = st.selectbox("ECG QRS Interval", ["Normal (<100ms)", "Widened (>100ms)"])
-    temperature = st.selectbox("Core Temperature", ["Normal", "Hyperthermia (>39C)"])
-    
-    if st.button("Clear Patient Data", use_container_width=True):
-        st.rerun()
+# --- 2. BUILD SEARCH INDEXES ---
+# Create a searchable list of all drugs and toxidromes
+search_directory = []
+drug_to_tox_map = {}
+for tox_name, data in TOXICOLOGY_DB.items():
+    search_directory.append(tox_name)
+    for drug in data["substances"]:
+        search_directory.append(drug)
+        drug_to_tox_map[drug] = tox_name # Maps a drug back to its parent toxidrome
 
-# --- 3. DYNAMIC MATCHING ALGORITHM ---
-patient_findings = []
-if pupils == "Normal": patient_findings.append("Normal pupils")
-if pupils == "Pinpoint": patient_findings.append("Pinpoint pupils")
-if pupils == "Dilated": patient_findings.append("Dilated pupils")
-if respirations == "Depressed (<12)": patient_findings.append("Respiratory depression")
-if respirations == "Tachypnea (>20)": patient_findings.append("Tachypnea (>20)")
-if mental_status == "Depressed / Coma": 
-    patient_findings.append("CNS depression")
-    patient_findings.append("Depressed / Coma")
-if mental_status == "Agitated / Delirium": patient_findings.append("Agitation / Delirium")
-if heart_rate == "Bradycardia (<60)": patient_findings.append("Bradycardia")
-if heart_rate == "Tachycardia (>100)": patient_findings.append("Tachycardia")
-if skin == "Dry / Flushed": patient_findings.append("Dry / Flushed skin")
-if skin == "Diaphoretic (Sweaty)": patient_findings.append("Diaphoresis (Sweaty)")
-if bowel_sounds == "Decreased / Absent": patient_findings.append("Decreased / Absent bowel sounds")
-if bowel_sounds == "Hyperactive": patient_findings.append("Hyperactive bowel sounds")
-if ecg_qrs == "Widened (>100ms)": patient_findings.append("Widened QRS (>100ms)")
-if temperature == "Hyperthermia (>39C)": patient_findings.append("Hyperthermia (>39C)")
+# Create a master list of all unique symptoms for the solver
+all_symptoms = set()
+for data in TOXICOLOGY_DB.values():
+    for h in data["hallmarks"]:
+        all_symptoms.add(h)
+all_symptoms = sorted(list(all_symptoms))
 
-results = []
-for tox_name, tox_data in TOXICOLOGY_DB.items():
-    matches = [f for f in patient_findings if f in tox_data["hallmarks"]]
-    missing = [h for h in tox_data["hallmarks"] if h not in patient_findings]
+# --- 3. MAIN UI HEADER ---
+st.markdown("<div style='font-size: 2.2rem; font-weight: 800; color: #00BFFF; border-bottom: 3px solid #00BFFF; padding-bottom: 10px; margin-bottom: 20px;'>Universal Toxicology Search Engine</div>", unsafe_allow_html=True)
+
+# --- 4. TABBED NAVIGATION ---
+tab1, tab2 = st.tabs(["🔍 Direct Protocol Search", "🧠 Symptom Solver Engine"])
+
+# ==========================================
+# TAB 1: DIRECT PROTOCOL SEARCH
+# ==========================================
+with tab1:
+    st.markdown("### Search by Drug, Class, or Toxidrome")
+    # Universal Search Bar
+    search_query = st.selectbox("Type or select a substance (e.g., Fentanyl, Tylenol, Anticholinergic):", [""] + sorted(search_directory))
     
-    score = len(matches)
-    if score > 0:
-        results.append({
-            "tox": tox_name, 
-            "match_count": score, 
-            "score": score, 
-            "matches": matches, 
-            "missing": missing,
-            "db_data": tox_data 
-        })
-
-results = sorted(results, key=lambda x: x["score"], reverse=True)
-
-is_critical = respirations == "Depressed (<12)" or mental_status == "Depressed / Coma" or ecg_qrs == "Widened (>100ms)"
-is_high_risk = mental_status == "Agitated / Delirium" or temperature == "Hyperthermia (>39C)"
-
-# --- 4. MAIN DASHBOARD ---
-st.markdown("<div style='font-size: 2.2rem; font-weight: 800; color: #00BFFF; border-bottom: 3px solid #00BFFF; padding-bottom: 10px; margin-bottom: 20px;'>Clinical Decision Support: Toxicology</div>", unsafe_allow_html=True)
-
-if is_critical:
-    st.markdown("<div class='critical-alert'>STATUS: CRITICAL PRESENTATION - Immediate Stabilization Required</div>", unsafe_allow_html=True)
-elif is_high_risk:
-    st.markdown("<div class='urgent-alert'>STATUS: HIGH RISK - Monitor for Rapid Decompensation</div>", unsafe_allow_html=True)
-elif len(results) > 0:
-    st.markdown("<div class='urgent-alert'>STATUS: OBSERVATION - Toxidrome Evaluation In Progress</div>", unsafe_allow_html=True)
-else:
-    st.markdown("<div class='stable-alert'>STATUS: STABLE - Awaiting Clinical Inputs</div>", unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-if len(results) > 0:
-    top = results[0]
-    
-    st.markdown("<div class='section-header'>Diagnostic Engine</div>", unsafe_allow_html=True)
-    
-    if top["match_count"] < 2:
-        st.markdown("<div class='diagnostic-card'><strong>Indeterminate Pattern:</strong> Presentation lacks sufficient hallmarks for definitive classification. Maintain broad differentials.</div>", unsafe_allow_html=True)
-    else:
-        col_res1, col_res2 = st.columns([1, 1.5])
+    if search_query != "":
+        st.markdown("---")
+        # Figure out which toxidrome to display
+        target_tox = drug_to_tox_map.get(search_query, search_query)
+        data = TOXICOLOGY_DB[target_tox]
         
-        with col_res1:
-            st.markdown(f"<div class='diagnostic-card'>", unsafe_allow_html=True)
-            st.markdown(f"**Primary Consideration:** {top['tox']}")
+        # Display Results
+        st.markdown(f"<div style='font-size: 1.8rem; font-weight: bold; color: #333;'>{target_tox} Protocol</div>", unsafe_allow_html=True)
+        if search_query != target_tox:
+            st.caption(f"↳ Triggered by search for: {search_query}")
             
-            st.markdown("\n**Matched Indicators:**")
-            for m in top["matches"]: st.markdown(f"- {m}")
-            
-            if len(top["missing"]) > 0:
-                st.markdown("\n**Missing Hallmarks:**")
-                for m in top["missing"]: st.markdown(f"- {m}")
+        col_a, col_b = st.columns([1, 1])
+        
+        with col_a:
+            st.markdown("<div class='section-header'>Clinical Presentation</div>", unsafe_allow_html=True)
+            for h in data["hallmarks"]:
+                st.markdown(f"• {h}")
                 
-            st.markdown("\n**Alternative Considerations:**")
-            for alt in top["db_data"]["alternatives"]: st.markdown(f"- {alt}")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<br><div class='section-header'>Common Causative Agents</div>", unsafe_allow_html=True)
+            tags_html = "".join([f"<span class='search-tag'>{drug}</span>" for drug in data["substances"]])
+            st.markdown(tags_html, unsafe_allow_html=True)
 
-        with col_res2:
-            st.markdown("<div class='diagnostic-card'>", unsafe_allow_html=True)
-            st.markdown("**Structured Intervention Plan**")
+        with col_b:
+            st.markdown("<div class='section-header'>Treatment Protocol</div>", unsafe_allow_html=True)
+            st.markdown(f"**💉 Primary Antidote:** {data['antidote']}")
+            st.markdown(f"**⚖️ Dosing:** {data['dose']}")
+            st.markdown(f"**🎯 Clinical Goal:** {data['goal']}")
             
-            st.markdown(f"- **Primary Antidote:** {top['db_data']['antidote']}")
-            st.markdown(f"- **Recommended Dose:** {top['db_data']['dose']}")
-            st.markdown(f"- **Clinical Goal:** {top['db_data']['goal']}")
-            st.markdown(f"- **Warnings/Contraindications:** {top['db_data']['warnings']}")
+            st.markdown("<br><div class='section-header'>Critical Warnings</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='critical-alert'>⚠️ {data['warnings']}</div>", unsafe_allow_html=True)
+
+# ==========================================
+# TAB 2: SYMPTOM SOLVER ENGINE
+# ==========================================
+with tab2:
+    st.markdown("### Reverse Lookup: Enter Patient Findings")
+    # Multi-select search bar for symptoms
+    selected_symptoms = st.multiselect("Select all presenting signs and symptoms:", all_symptoms)
+    
+    if len(selected_symptoms) > 0:
+        st.markdown("---")
+        
+        # Scoring Algorithm
+        results = []
+        for tox_name, data in TOXICOLOGY_DB.items():
+            matches = [s for s in selected_symptoms if s in data["hallmarks"]]
+            if len(matches) > 0:
+                results.append({
+                    "tox": tox_name,
+                    "score": len(matches),
+                    "matches": matches,
+                    "missing": [h for h in data["hallmarks"] if h not in selected_symptoms],
+                    "data": data
+                })
+                
+        # Sort by best match
+        results = sorted(results, key=lambda x: x["score"], reverse=True)
+        
+        if len(results) > 0:
+            top_match = results[0]
+            st.markdown(f"#### 🔍 Top Differential: **{top_match['tox']}** ({top_match['score']} symptoms matched)")
             
-            st.markdown("</div>", unsafe_allow_html=True)
+            col_x, col_y = st.columns(2)
+            with col_x:
+                st.markdown("<div class='diagnostic-card'>", unsafe_allow_html=True)
+                st.markdown("**Matched Findings:**")
+                for m in top_match["matches"]: st.markdown(f"✅ {m}")
+                st.markdown("**Missing Classic Hallmarks:**")
+                if len(top_match["missing"]) == 0:
+                    st.markdown("None. Classic presentation.")
+                else:
+                    for m in top_match["missing"]: st.markdown(f"❌ {m}")
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+            with col_y:
+                st.markdown("<div class='diagnostic-card'>", unsafe_allow_html=True)
+                st.markdown(f"**Recommended Intervention:** {top_match['data']['antidote']}")
+                st.markdown(f"**Dosing:** {top_match['data']['dose']}")
+                st.markdown(f"**Warning:** {top_match['data']['warnings']}")
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+            # Show secondary differentials if they exist
+            if len(results) > 1:
+                st.markdown("<br>**Secondary Considerations:**", unsafe_allow_html=True)
+                for res in results[1:3]: # Show next 2 matches
+                    st.caption(f"- {res['tox']} ({res['score']} matches)")
