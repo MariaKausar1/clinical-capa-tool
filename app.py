@@ -13,7 +13,67 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 1. LEFT PANEL: TRIAGE ASSESSMENT ---
+# --- 1. THE CLINICAL DATABASE ---
+TOXICOLOGY_DB = {
+    "Opioid": {
+        "hallmarks": ["Pinpoint pupils", "Respiratory depression", "CNS depression", "Bradycardia"],
+        "alternatives": ["Sedative-hypnotic exposure", "Hypoglycemia", "Primary intracranial event"],
+        "antidote": "Naloxone",
+        "dose": "0.04 - 0.4 mg IV (titrate to effect).",
+        "goal": "Adequate spontaneous ventilation (not full arousal).",
+        "warnings": "Observe for re-sedation (naloxone half-life is ~30-81 mins)."
+    },
+    "Anticholinergic": {
+        "hallmarks": ["Dilated pupils", "Dry / Flushed skin", "Tachycardia", "Agitation / Delirium", "Decreased / Absent bowel sounds"],
+        "alternatives": ["Sepsis / Infection", "Thyroid storm", "Alcohol withdrawal"],
+        "antidote": "Supportive Care & Physostigmine",
+        "dose": "Physostigmine 0.5 - 2 mg IV over 5 mins (for severe delirium).",
+        "goal": "Control severe central nervous system agitation.",
+        "warnings": "ABSOLUTE CONTRAINDICATION: Do NOT administer physostigmine if QRS > 100ms or TCA overdose is suspected."
+    },
+    "Sympathomimetic": {
+        "hallmarks": ["Dilated pupils", "Diaphoresis (Sweaty)", "Tachycardia", "Agitation / Delirium", "Hyperthermia (>39C)"],
+        "alternatives": ["Serotonin Syndrome", "Thyroid storm", "Alcohol/Benzo withdrawal"],
+        "antidote": "Benzodiazepines",
+        "dose": "Diazepam 5-10 mg IV or Lorazepam 1-2 mg IV.",
+        "goal": "Reduce sympathetic outflow and prevent seizures/hyperthermia.",
+        "warnings": "ABSOLUTE CONTRAINDICATION: Beta-blockers (risk of unopposed alpha stimulation)."
+    },
+    "Cholinergic": {
+        "hallmarks": ["Pinpoint pupils", "Diaphoresis (Sweaty)", "Hyperactive bowel sounds", "Tachypnea (>20)"],
+        "alternatives": ["Pontine hemorrhage", "Opiate co-ingestion"],
+        "antidote": "Atropine & Pralidoxime (2-PAM)",
+        "dose": "Atropine 2 - 5 mg IV. Double every 5 minutes.",
+        "goal": "Titrate Atropine specifically to the clearing of respiratory secretions.",
+        "warnings": "Do not stop atropine based on heart rate or pupil size."
+    },
+    "Serotonin Syndrome": {
+        "hallmarks": ["Agitation / Delirium", "Tachycardia", "Diaphoresis (Sweaty)", "Hyperactive bowel sounds", "Hyperthermia (>39C)"],
+        "alternatives": ["Sympathomimetic toxicity", "Neuroleptic Malignant Syndrome (NMS)"],
+        "antidote": "Cyproheptadine & Benzodiazepines",
+        "dose": "Cyproheptadine 12 mg PO/NG initially, then 2 mg q2h if symptomatic.",
+        "goal": "Control agitation, hyperthermia, and reduce muscle rigidity.",
+        "warnings": "Do NOT use physical restraints. Avoid antipyretics."
+    },
+    "Tricyclic Antidepressant (TCA)": {
+        "hallmarks": ["Agitation / Delirium", "Tachycardia", "Dilated pupils", "Dry / Flushed skin", "Widened QRS (>100ms)"],
+        "alternatives": ["Anticholinergic toxicity", "Cocaine/Amphetamine overdose"],
+        "antidote": "Sodium Bicarbonate",
+        "dose": "1-2 mEq/kg IV bolus, followed by continuous IV infusion.",
+        "goal": "Narrow QRS interval to <100ms and correct hypotension.",
+        "warnings": "Avoid physostigmine. Monitor closely for refractory ventricular dysrhythmias."
+    },
+    "Sedative-Hypnotic": {
+        "hallmarks": ["Depressed / Coma", "Normal pupils"],
+        "alternatives": ["Opioid toxicity", "Ethanol intoxication", "Hypoglycemia"],
+        "antidote": "Supportive Care",
+        "dose": "Airway management and ventilatory support.",
+        "goal": "Maintain adequate oxygenation and ventilation.",
+        "warnings": "Flumazenil is generally contraindicated in undifferentiated overdoses due to risk of intractable seizures."
+    }
+}
+
+# --- 2. LEFT PANEL: TRIAGE ASSESSMENT ---
 with st.sidebar:
     st.markdown("<div style='font-size: 1.5rem; font-weight: bold; color: #00BFFF;'>Triage Assessment</div>", unsafe_allow_html=True)
     st.caption("Input real-time patient findings.")
@@ -37,72 +97,50 @@ with st.sidebar:
     if st.button("Clear Patient Data", use_container_width=True):
         st.rerun()
 
-# --- 2. LOGIC & PHYSIOLOGY ENGINE ---
-hallmarks = {
-    "Opioid": ["Pinpoint pupils", "Respiratory depression", "CNS depression", "Bradycardia"],
-    "Anticholinergic": ["Dilated pupils", "Dry/Flushed skin", "Tachycardia", "Agitation/Delirium"],
-    "Sympathomimetic": ["Dilated pupils", "Diaphoresis", "Tachycardia", "Agitation/Delirium", "Hyperthermia (>39C)"],
-    "Cholinergic": ["Pinpoint pupils", "Diaphoresis", "Hyperactive bowel sounds", "Tachypnea"]
-}
-
-matched_findings = {"Opioid": [], "Anticholinergic": [], "Sympathomimetic": [], "Cholinergic": []}
-contradictory_findings = {"Opioid": [], "Anticholinergic": [], "Sympathomimetic": [], "Cholinergic": []}
-
-# Advanced Physiology: TCA Overdose Detection
-tca_warning = (ecg_qrs == "Widened (>100ms)" and (heart_rate == "Tachycardia (>100)" or mental_status == "Agitated / Delirium"))
-
-if pupils == "Pinpoint":
-    matched_findings["Opioid"].append("Pinpoint pupils")
-    matched_findings["Cholinergic"].append("Pinpoint pupils")
-    contradictory_findings["Anticholinergic"].append("Pinpoint pupils")
-    contradictory_findings["Sympathomimetic"].append("Pinpoint pupils")
-if pupils == "Dilated":
-    matched_findings["Anticholinergic"].append("Dilated pupils")
-    matched_findings["Sympathomimetic"].append("Dilated pupils")
-    contradictory_findings["Opioid"].append("Dilated pupils")
-    contradictory_findings["Cholinergic"].append("Dilated pupils")
-if respirations == "Depressed (<12)": matched_findings["Opioid"].append("Respiratory depression")
-if respirations == "Tachypnea (>20)": matched_findings["Cholinergic"].append("Tachypnea")
-if mental_status == "Depressed / Coma": matched_findings["Opioid"].append("CNS depression")
-if mental_status == "Agitated / Delirium":
-    matched_findings["Anticholinergic"].append("Agitation/Delirium")
-    matched_findings["Sympathomimetic"].append("Agitation/Delirium")
-    contradictory_findings["Opioid"].append("Agitation")
-if heart_rate == "Bradycardia (<60)": matched_findings["Opioid"].append("Bradycardia")
-if heart_rate == "Tachycardia (>100)":
-    matched_findings["Anticholinergic"].append("Tachycardia")
-    matched_findings["Sympathomimetic"].append("Tachycardia")
-if skin == "Dry / Flushed":
-    matched_findings["Anticholinergic"].append("Dry/Flushed skin")
-    contradictory_findings["Sympathomimetic"].append("Dry skin")
-    contradictory_findings["Cholinergic"].append("Dry skin")
-if skin == "Diaphoretic (Sweaty)":
-    matched_findings["Sympathomimetic"].append("Diaphoresis")
-    matched_findings["Cholinergic"].append("Diaphoresis")
-    contradictory_findings["Anticholinergic"].append("Diaphoresis")
-if bowel_sounds == "Decreased / Absent": matched_findings["Anticholinergic"].append("Decreased bowel sounds")
-if bowel_sounds == "Hyperactive": matched_findings["Cholinergic"].append("Hyperactive bowel sounds")
-if temperature == "Hyperthermia (>39C)":
-    matched_findings["Sympathomimetic"].append("Hyperthermia (>39C)")
-    matched_findings["Anticholinergic"].append("Hyperthermia (>39C)")
+# --- 3. DYNAMIC MATCHING ALGORITHM ---
+patient_findings = []
+if pupils == "Normal": patient_findings.append("Normal pupils")
+if pupils == "Pinpoint": patient_findings.append("Pinpoint pupils")
+if pupils == "Dilated": patient_findings.append("Dilated pupils")
+if respirations == "Depressed (<12)": patient_findings.append("Respiratory depression")
+if respirations == "Tachypnea (>20)": patient_findings.append("Tachypnea (>20)")
+if mental_status == "Depressed / Coma": 
+    patient_findings.append("CNS depression")
+    patient_findings.append("Depressed / Coma")
+if mental_status == "Agitated / Delirium": patient_findings.append("Agitation / Delirium")
+if heart_rate == "Bradycardia (<60)": patient_findings.append("Bradycardia")
+if heart_rate == "Tachycardia (>100)": patient_findings.append("Tachycardia")
+if skin == "Dry / Flushed": patient_findings.append("Dry / Flushed skin")
+if skin == "Diaphoretic (Sweaty)": patient_findings.append("Diaphoresis (Sweaty)")
+if bowel_sounds == "Decreased / Absent": patient_findings.append("Decreased / Absent bowel sounds")
+if bowel_sounds == "Hyperactive": patient_findings.append("Hyperactive bowel sounds")
+if ecg_qrs == "Widened (>100ms)": patient_findings.append("Widened QRS (>100ms)")
+if temperature == "Hyperthermia (>39C)": patient_findings.append("Hyperthermia (>39C)")
 
 results = []
-for tox, matches in matched_findings.items():
-    score = len(matches) - (len(contradictory_findings[tox]) * 1.5)
-    missing = [h for h in hallmarks[tox] if h not in matches]
-    if len(matches) > 0:
-        results.append({"tox": tox, "match_count": len(matches), "score": score, "matches": matches, "contradictions": contradictory_findings[tox], "missing": missing})
+for tox_name, tox_data in TOXICOLOGY_DB.items():
+    matches = [f for f in patient_findings if f in tox_data["hallmarks"]]
+    missing = [h for h in tox_data["hallmarks"] if h not in patient_findings]
+    
+    score = len(matches)
+    if score > 0:
+        results.append({
+            "tox": tox_name, 
+            "match_count": score, 
+            "score": score, 
+            "matches": matches, 
+            "missing": missing,
+            "db_data": tox_data 
+        })
 
 results = sorted(results, key=lambda x: x["score"], reverse=True)
 
-# Severity Engine
-is_critical = respirations == "Depressed (<12)" or mental_status == "Depressed / Coma" or tca_warning
+is_critical = respirations == "Depressed (<12)" or mental_status == "Depressed / Coma" or ecg_qrs == "Widened (>100ms)"
 is_high_risk = mental_status == "Agitated / Delirium" or temperature == "Hyperthermia (>39C)"
 
-# --- 3. MAIN DASHBOARD ---
+# --- 4. MAIN DASHBOARD ---
 st.markdown("<div style='font-size: 2.2rem; font-weight: 800; color: #00BFFF; border-bottom: 3px solid #00BFFF; padding-bottom: 10px; margin-bottom: 20px;'>Clinical Decision Support: Toxicology</div>", unsafe_allow_html=True)
 
-# Status Bar
 if is_critical:
     st.markdown("<div class='critical-alert'>STATUS: CRITICAL PRESENTATION - Immediate Stabilization Required</div>", unsafe_allow_html=True)
 elif is_high_risk:
@@ -112,23 +150,21 @@ elif len(results) > 0:
 else:
     st.markdown("<div class='stable-alert'>STATUS: STABLE - Awaiting Clinical Inputs</div>", unsafe_allow_html=True)
 
-# TCA Warning Override
-if tca_warning:
-    st.markdown("<br><div class='critical-alert'>ECG WARNING: Widened QRS + Anticholinergic/Tachycardic features detected. High suspicion for Tricyclic Antidepressant (TCA) toxicity. Prepare Sodium Bicarbonate.</div>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 if len(results) > 0:
     top = results[0]
     
     st.markdown("<div class='section-header'>Diagnostic Engine</div>", unsafe_allow_html=True)
     
-    if top["match_count"] < 2 or top["score"] < 1:
+    if top["match_count"] < 2:
         st.markdown("<div class='diagnostic-card'><strong>Indeterminate Pattern:</strong> Presentation lacks sufficient hallmarks for definitive classification. Maintain broad differentials.</div>", unsafe_allow_html=True)
     else:
         col_res1, col_res2 = st.columns([1, 1.5])
         
         with col_res1:
             st.markdown(f"<div class='diagnostic-card'>", unsafe_allow_html=True)
-            st.markdown(f"**Primary Consideration:** {top['tox']} Toxidrome")
+            st.markdown(f"**Primary Consideration:** {top['tox']}")
             
             st.markdown("\n**Matched Indicators:**")
             for m in top["matches"]: st.markdown(f"- {m}")
@@ -137,29 +173,18 @@ if len(results) > 0:
                 st.markdown("\n**Missing Hallmarks:**")
                 for m in top["missing"]: st.markdown(f"- {m}")
                 
-            if len(top["contradictions"]) > 0:
-                st.markdown("\n**Conflicting Data:**")
-                for c in top["contradictions"]: st.markdown(f"- {c}")
+            st.markdown("\n**Alternative Considerations:**")
+            for alt in top["db_data"]["alternatives"]: st.markdown(f"- {alt}")
+            
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_res2:
             st.markdown("<div class='diagnostic-card'>", unsafe_allow_html=True)
             st.markdown("**Structured Intervention Plan**")
             
-            if top["tox"] == "Opioid":
-                st.markdown("- **Antidote:** Naloxone 0.04 - 0.4 mg IV.")
-                st.markdown("- **Goal:** Spontaneous ventilation (not full arousal).")
-                st.markdown("- **Monitoring:** Continuous SpO2 and ETCO2 capnography.")
-            elif top["tox"] == "Anticholinergic":
-                st.markdown("- **Antidote:** Physostigmine 0.5 - 2 mg IV (Administer only if QRS is normal).")
-                st.markdown("- **Contraindication:** Do NOT administer physostigmine if QRS > 100ms or TCA overdose suspected.")
-                st.markdown("- **Monitoring:** Continuous ECG and core temperature monitoring.")
-            elif top["tox"] == "Sympathomimetic":
-                st.markdown("- **Intervention:** Benzodiazepines (Diazepam 5-10 mg IV) for agitation.")
-                st.markdown("- **Contraindication:** Absolute contraindication for beta-blockers (risk of unopposed alpha stimulation).")
-                st.markdown("- **Monitoring:** Active cooling required if hyperthermic.")
-            elif top["tox"] == "Cholinergic":
-                st.markdown("- **Antidote:** Atropine 2 - 5 mg IV (titrate to drying of respiratory secretions).")
-                st.markdown("- **Secondary:** Follow with Pralidoxime (2-PAM) for neuromuscular weakness.")
-                st.markdown("- **Monitoring:** Assess frequently for impending respiratory failure.")
+            st.markdown(f"- **Primary Antidote:** {top['db_data']['antidote']}")
+            st.markdown(f"- **Recommended Dose:** {top['db_data']['dose']}")
+            st.markdown(f"- **Clinical Goal:** {top['db_data']['goal']}")
+            st.markdown(f"- **Warnings/Contraindications:** {top['db_data']['warnings']}")
+            
             st.markdown("</div>", unsafe_allow_html=True)
